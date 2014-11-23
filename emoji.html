@@ -1,0 +1,122 @@
+
+
+<html>
+<head>
+	  <meta charset="utf-8">
+	<title>Ezra Miller | 21 Minus</title>
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no,  minimal-ui">
+  <!-- <link rel="stylesheet" href="css/normalize.css"> -->
+  <link rel="icon" 
+      href="favicon.ico">
+  <link href="ratchet/css/ratchet.css" rel="stylesheet">
+  <link href="ratchet/css/emoji.css" rel="stylesheet">
+
+  <style>
+  body{
+    background-color: #FFF;
+  }
+  	canvas{
+  		position: absolute;
+  		top: 45px;
+
+  	}
+  </style>
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-51076426-1', 'ezra.io');
+  ga('send', 'pageview');
+
+</script>
+<script src="js/pace.js"></script>
+</head>
+<body>
+<div class="bar bar-nav">
+	  <a class="icon icon-left-nav pull-left" href="index.html"></a>
+
+	<h1 class="title">randomoji</h1>
+</div>
+<div style="width:100%; height:100%">
+<div id="clicker"class="slide-text" style=" color:black;position: relative; top: 50%; margin: 0 auto; text-align:center;">Click for a new emoji</div>
+</div>
+<div id="out3" style=" width: 100%; height:100%;padding: 1px; size: 64px; position: absolute; top: 44px;"></div>
+
+<!-- <img src="img/152.png" class="emoji" style="position:absolute; top:44px; left: 100px"></img> -->
+
+
+
+	<script src="js/hammer.js"></script>
+  <script src="ratchet/js/emoji.js"></script>
+  <script type="text/javascript">
+  emoji.init_env();
+  emoji.img_path = "https://github.global.ssl.fastly.net/images/icons/emoji/";
+// var auto_mode = emoji.replace_mode;
+
+  // go();
+
+  // function go(){
+
+  //   var text = document.getElementById('input').value;
+  // // emoji.replace_mode = auto_mode;
+  //     console.log(text.length);
+  //    var thing =  text.split(":");
+  //    console.log(thing);
+  //        var out = emoji.replace_colons(text);
+  //        var count=0;
+  //   for(var i = 0; i<thing.length; i++){
+  //     if ( i%2!==0){
+  //       count++;
+  //     }
+  //   }
+
+  // console.log(spans);
+  // document.getElementById("out3").innerHTML = out;
+
+  // }
+  //   var spans =  document.getElementsByClassName("emoji");
+
+  //   function init(){
+  //     var emojis = document.getElementsByTagName("span");
+  //     var hammertime = new Hammer(emojis);
+  //     hammertime.on("drag", function(e){
+  //       this = e.target;
+  //       var x = this.gesture.touches[0].clientX;
+  //       var y = this.gesture.touches[0].clientY;
+  //       this.style.left = x;
+  //       this.style.top = y;
+  //     })
+  //   }
+
+  //   init();
+
+var mojiList = [];
+    for (var i in emoji.data){
+      for (var j=0; j<emoji.data[i][3].length; j++){
+      
+        mojiList.push(emoji.data[i][3][j]);
+      }
+    }
+    console.log(mojiList);
+    function emojiLoop(){
+     // var div = document.getElementById("out3");
+     var i = Math.random()*mojiList.length;
+     var newI = Math.round(i);
+     console.log(mojiList[newI], newI);
+     var out = emoji.replace_colons(":"+mojiList[newI]+":");
+       document.getElementById("out3").innerHTML = out;
+
+    }
+  // setInterval(function(){emojiLoop()},1000);
+document.getElementById("out3").onclick=function(){
+  document.getElementById("clicker").style.display = "none";
+  emojiLoop();
+}
+  </script>
+</body>
+</html>
+
+
+<!-- <h1>test</h1> -->

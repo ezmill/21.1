@@ -1,0 +1,311 @@
+<html>
+<head>
+  <title>nite_vision_vibez</title>
+
+  <script type="text/javascript" src="webgl-utils.js"></script>
+  <script type="text/javascript" src="fboTextureUtils_nearest.js"></script>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+</head>
+
+<body style="padding:0px; margin:0px;">
+  <div id="container">
+    <canvas id="canvas" style ="background:black; position:absolute;top:0;left:0;z-index:0; width:100%; height:100%;">
+      Update your browser, ya dingus! You need one that supports WebGL. Try Google Chrome.
+    </canvas>
+  </div>
+
+
+<script id="baseVs" type="x-shader/x-vertex">
+//attributes come from fboTextureUtils
+attribute vec3 pos;
+attribute vec4 color;
+attribute vec2 texcoord;
+
+varying vec2 v_texCoord;
+varying vec4 vColor;
+
+void main() {
+   gl_Position = vec4(pos.x,pos.y,pos.z,1.0);
+   v_texCoord = texcoord;
+   vColor = color;
+}
+</script>
+<script id="baseFs" type="x-shader/x-fragment">
+precision mediump float;
+uniform sampler2D u_image; 
+uniform float time; // seconds
+varying vec2 v_texCoord;
+uniform vec2 res;
+float luminanceThreshold = 0.2; // 0.2
+float colorAmplification = 1.0; // 4.0
+float effectCoverage = 1.0; // 0.5
+mat2 m = mat2( 0.80,  0.60, -0.60,  0.80 );
+
+float hash( float n )
+{
+    return fract(sin(n)*43758.5453);
+}
+
+float noise( in vec2 x )
+{
+    vec2 p = floor(x+sqrt(time/1.)*2.0);
+    vec2 f = fract(x+sqrt(time/1.)*2.0);
+    f = f*f*(3.0-2.0*f);
+    float n = p.x + p.y*57.0;
+    float res = mix(mix( hash(n+  0.0), hash(n+  1.0),f.x), mix( hash(n+ 57.0), hash(n+ 58.0),f.x),f.y);
+    return res;
+}
+float fbm( vec2 p )
+{
+    float f = 0.0;
+    f += 0.90000*noise( p ); p = m*p*2.02;
+    f += 0.25000*noise( p ); p = m*p*2.03;
+    f += 0.12500*noise( p ); p = m*p*2.01;
+    f += 0.06250*noise( p ); p = m*p*2.04;
+    f += 0.03125*noise( p );
+    return f/0.984375;
+}
+void main ()
+{
+  vec4 finalColor;
+                               
+    // vec3 c = texture2D(u_image, vec2(fbm(v_texCoord))).rgb;
+    vec3 c = texture2D(u_image, v_texCoord).rgb;
+
+    float luma = dot(vec3(0.30, 0.59, 0.11), c);
+    if (luma < luminanceThreshold)
+      c *= colorAmplification; 
+  
+    // vec3 visionColor = vec3(1.0,1.0,0.0);
+    // vec3 visionColor = vec3(0.0);
+    finalColor.rgb = (c);//*visionColor;
+
+  float stepSize = 2.0;
+  float lum = length(texture2D(u_image, v_texCoord).rgb);
+   
+
+  // gl_FragColor = vec4(0.125,0.125,0.125,0.0);
+  // gl_FragColor = vec4(0.);
+  // gl_FragColor = vec4(0.0,0.2, 0.0, 1.0);
+   float val = 2.0;
+gl_FragColor = vec4(0.0);
+    if(lum>0.1){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.0);
+      }
+    }
+    if(lum>0.2){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.1,0.2,0.3,1.0);
+      }
+    }
+    if(lum>0.3){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.2,0.1,0.3,1.0);
+      }
+    }
+    if(lum>0.4){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.3,0.2,0.1,1.0);
+      }
+    }
+    if(lum>0.5){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.4,0.5,0.6,1.0);
+      }
+    }
+    if(lum>0.6){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.5,0.4,0.6,1.0);
+      }
+    }
+    if(lum>0.7){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.6,0.4,0.5,1.0);
+      }
+    }
+    if(lum>0.8){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.6,0.7,0.8,1.0);
+      }
+    }
+    if(lum>0.9){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.6,0.8,0.7,1.0);
+      }
+    }
+    if(lum>1.0){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.8,0.6,0.7,1.0);
+      }
+    }
+    if(lum>1.1){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.8,0.9,1.0,1.0);
+      }
+    }
+    if(lum>1.2){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(1.0,0.9,0.8,1.0);
+      }
+    }
+    if(lum>1.3){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(1.0,0.8,0.9,1.0);
+      }
+    }
+    if(lum>1.4){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(1.0,0.9,0.9,1.0);
+      }
+    }
+    if(lum>1.5){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.7);
+      }
+    }
+    if(lum>1.6){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.75);
+      }
+    }
+    if(lum>1.7){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+          gl_FragColor =  vec4(0.8);
+      }
+    }
+    if(lum>1.8){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+        gl_FragColor =  vec4(0.85);
+      }
+    }
+    if(lum>1.9){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+        gl_FragColor =  vec4(0.9);
+      }
+    }
+    if(lum>2.0){
+      if (mod(gl_FragCoord.y - gl_FragCoord.x, stepSize) == 0.0) {
+        gl_FragColor =  vec4(0.95);
+      }
+    }
+}     
+
+
+</script>
+<script type="text/javascript">
+var gl, canvas, fbo;
+var baseProgram, baseTexture;
+var baseVs, baseFs;
+var camTex;
+var videoLoaded = false;
+var firstFrame = true;
+var delay = 0;
+var time = 0.0;
+
+var video = document.createElement("video");
+canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+// document.addEventListener('mousedown', onDocumentMouseDown, false);
+
+video.src = "caustics.mp4";
+video.loop = true;
+video.playbackRate = 2.0;
+video.play();
+videoLoaded = true;
+
+initGl();
+initFbo();
+getCamAsTexture();
+window.requestAnimationFrame(loop);
+
+function initFbo () {
+  baseTexture = new pxBB();
+  fbo = new pxFbo();
+  fbo.allocate(canvas.width, canvas.height);
+  baseVs = createShaderFromScriptElement(gl, "baseVs");
+  baseFs = createShaderFromScriptElement(gl, "baseFs");
+  baseProgram = createProgram(gl, [baseVs, baseFs]);
+  fbo.start();
+  gl.useProgram(baseProgram);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  fbo.draw(baseProgram);
+}
+
+function loop(){
+  window.requestAnimationFrame(loop);
+  if(videoLoaded){
+    // if(delay < 50){
+      getNewImg();
+      delay++;
+    // }
+    time+=0.01;
+    fbo.start();
+    gl.useProgram(baseProgram);
+    gl.uniform2f(gl.getUniformLocation(baseProgram,"res"), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(baseProgram, "time"), time);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    fbo.draw(baseProgram);
+    // gl.enable(gl.BLEND);
+    // gl.blendFunc(gl.ONE_MINUS_CONSTANT_COLOR, gl.C_COLOR);
+    gl.bindTexture(gl.TEXTURE_2D, camTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+  
+  }
+
+}
+
+function initGl(){
+  gl = getWebGLContext(canvas);
+}
+
+function initUniforms(w,h,time,mouse){
+
+}
+function getCamAsTexture(){
+  //create camera texture
+  camTex = createAndSetupTexture(gl);
+  camTex.image = video;
+  gl.bindTexture(gl.TEXTURE_2D, camTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+
+}
+
+function getNewImg(){
+   //gets a new frame
+    // requestAnimationFrame(getNewImg);
+   fbo.start();
+   baseTexture.draw(baseProgram, camTex);
+}
+
+window.addEventListener("click", function(){
+  getNewImg();
+})
+ // requestAnimationFrame(getNewImg);
+
+//capture video
+  // window.addEventListener('DOMContentLoaded', function(){
+  //       navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+ 
+  //   if (navigator.getUserMedia) {       
+  //       navigator.getUserMedia({video: true, audio: false}, handleVideo, videoError);
+  //   }
+ 
+  //   function handleVideo(stream) {
+  //     var url = window.URL || window.webkitURL;
+  //      video.src = url ? url.createObjectURL(stream) : stream;
+  //       video.play();
+  //       //video.src = window.URL.createObjectURL(stream);
+  //       videoLoaded = true;
+  //   }
+ 
+  //   function videoError(e) {
+  //     alert("There seems to be something wrong with your webcam :(");
+  //   }
+  // });
+
+</script>
+
+</body>
+</html>

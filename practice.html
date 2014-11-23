@@ -1,0 +1,256 @@
+<html><head>
+  <title>Webgl Feedback Example</title>
+
+  <link rel="image_src" href="http://adamferriss.com/example/meta.png">
+  <link rel="canonical" href="http://adamferriss.com/example/index.html">
+
+  <meta property="og:url" content="http://adamferriss.com/example/index.html">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="WebGl Feedback Example">
+  <meta property="og:image" content="http://adamferriss.com/example/meta.png">
+  <meta property="og:description" content="A webgl feedback experiment. Combination of Blur/Emboss">
+
+  <script type="text/javascript" src="webgl-utils.js"></script><style type="text/css"></style>
+  <script type="text/javascript" src="fboTextureUtils.js"></script>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+</head>
+
+<body style="padding: 0px; margin: 0px;" cz-shortcut-listen="true">
+  <h1>Webgl Feedback Example</h1><div id="container">
+    <canvas id="canvas" style="background:black; position:absolute;top:0;left:0;z-index:0; width:100%; height:100%;" width="1326" height="670">
+      Sorry but your browser doesn't support the canvas :(
+    </canvas>
+  </div>
+
+
+<script id="baseVs" type="x-shader/x-vertex">
+//attributes come from fboTextureUtils
+attribute vec3 pos;
+attribute vec4 color;
+attribute vec2 texcoord;
+
+varying vec2 v_texCoord;
+varying vec4 vColor;
+
+void main() {
+   gl_Position = vec4(pos.x,pos.y,pos.z,1.0);
+   v_texCoord = texcoord;
+   vColor = color;
+}
+</script>
+
+
+<script id="baseFs" type="x-shader/x-fragment">
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_texCoord;
+
+void main() {
+  vec4 color = texture2D(u_image, v_texCoord);
+  gl_FragColor = color;
+}
+</script>
+<script type="x-shader/x-fragment" id="feedbackFs">
+precision mediump float;
+uniform sampler2D u_image; 
+// uniform float time; // seconds
+varying vec2 v_texCoord;
+uniform vec2 res;
+
+uniform float kernel[9];
+vec2 offset[9];
+float kernel2[9];
+
+uniform float step_w;
+uniform float step_h;
+
+void main() {
+
+    offset[0] = vec2(-step_w, -step_h);
+    offset[1] = vec2(0.0, -step_h);
+    offset[2] = vec2(step_w, -step_h);
+    offset[3] = vec2(-step_w, 0.0);
+    offset[4] = vec2(0.0, 0.0);
+    offset[5] = vec2(step_w, 0.0);
+    offset[6] = vec2(-step_w, step_h);
+    offset[7] = vec2(0.0, step_h);
+    offset[8] = vec2(step_w, step_h);
+
+    // kernel[0] = -0.5; kernel[1] = -0.5; kernel[2] = 0.0;
+    // kernel[3] = -0.5; kernel[4] = 0.0; kernel[5] = 0.0;
+    // kernel[6] = 0.0; kernel[7] = 0.0; kernel[8] = 1.35;
+
+    // kernel[0] = 0.0; kernel[1] = -0.2; kernel[2] = 0.0;
+    // kernel[3] = -0.2; kernel[4] = 1.0; kernel[5] = -0.2;
+    // kernel[6] = 0.0; kernel[7] = -0.2; kernel[8] = 0.0;
+    // kernel2[0] = 0.0; kernel2[1] = -0.05; kernel2[2] = 0.0;
+    // kernel2[3] = -0.0; kernel2[4] = 0.025; kernel2[5] = -0.0;
+    // kernel2[6] = 0.0; kernel2[7] = 0.025; kernel2[8] = 0.0;
+    
+    vec4 sum = vec4(0.0);
+    //int i;
+    for (int i = 0; i < 9; i++) {
+        vec4 color = texture2D(u_image, v_texCoord + offset[i]);
+        sum += color * kernel[i];
+        // sum += color * kernel2[i];
+    }
+
+    float kernelWeight =
+     kernel[0] +
+     kernel[1] +
+     kernel[2] +
+     kernel[3] +
+     kernel[4] +
+     kernel[5] +
+     kernel[6] +
+     kernel[7] +
+     kernel[8] ;
+   if (kernelWeight <= 0.0) {
+     kernelWeight = 1.0;
+   }
+
+  gl_FragColor = sum;//vec4((sum / kernelWeight).rgb, 1.0);;
+}
+</script>
+
+
+
+<script type="text/javascript">
+var gl, baseTexture, canvas, fbo, feedback;
+var baseProgram, feedbackProgram;
+var baseVs, baseFs, feedbackFs;
+var camTex;
+var videoLoaded = false;
+var firstFrame = true;
+var delay = 0;
+
+var video=document.createElement('video');
+
+canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+document.addEventListener('mousedown', onDocumentMouseDown, false);
+
+initGl();
+initFbosAndShaders();
+getCamAsTexture();
+loop();
+
+
+function initGl(){
+  gl = getWebGLContext(canvas);
+}
+
+function initFbosAndShaders(){
+  baseTexture = new pxBB();
+  fbo = new pxFbo();
+  feedback = new pxFbo();
+
+  //set up fbo's
+  fbo.allocate(canvas.width, canvas.height);
+  feedback.allocate(canvas.width, canvas.height);
+
+  //create shaders
+  baseVs = createShaderFromScriptElement(gl, "baseVs");
+  baseFs = createShaderFromScriptElement(gl, "baseFs");
+  feedbackFs = createShaderFromScriptElement(gl, "feedbackFs");
+
+  //create program
+  baseProgram = createProgram(gl, [baseVs, baseFs]);
+  feedbackProgram = createProgram(gl, [baseVs, feedbackFs]);
+}
+
+var edgeDetectKernel = [
+    -1, -1, -1,
+    -1,  8, -1,
+    -1, -1, -1
+];
+var kernel = [
+  0,-1,0,
+  -1,5,-1,
+  0,-1,0
+
+];
+
+function loop(){
+window.requestAnimationFrame(loop);
+if(videoLoaded){
+
+  if(delay < 50){
+    //fill our feedback fbo with at least one frame of camera data
+    getNewImg();
+    delay++;
+  }
+ 
+ //draw feedback.texture into fbo
+ fbo.start();
+  gl.useProgram(feedbackProgram);
+  gl.uniform2f(gl.getUniformLocation(feedbackProgram,"res"), canvas.width, canvas.height);
+  gl.uniform1f(gl.getUniformLocation(feedbackProgram, "step_w"), 1.0/canvas.width);
+  gl.uniform1f(gl.getUniformLocation(feedbackProgram, "step_h"), 1.0/canvas.height);
+  gl.uniform1fv(gl.getUniformLocation(feedbackProgram, "kernel"),kernel);
+
+  feedback.draw(feedbackProgram);
+
+ //return fbo to itself
+ feedback.start();
+  fbo.draw(baseProgram);
+
+ //calling bindFramebuffer with null will draw to the screen
+ gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  feedback.draw(baseProgram);
+
+ //keep updating camtex in case we want another frame
+ gl.bindTexture(gl.TEXTURE_2D, camTex);
+ gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+}//end of videoLoaded 
+}
+
+
+function getCamAsTexture(){
+  //create camera texture
+  camTex = createAndSetupTexture(gl);
+  camTex.image = video;
+  gl.bindTexture(gl.TEXTURE_2D, camTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+
+}
+
+function getNewImg(){
+   //gets a new frame
+   // requestAnimationFrame(getNewImg);
+   feedback.start();
+   baseTexture.draw(baseProgram, camTex);
+}
+
+
+function onDocumentMouseDown(event) {
+    getNewImg();
+}
+
+//capture video
+  window.addEventListener('DOMContentLoaded', function(){
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+ 
+    if (navigator.getUserMedia) {       
+        navigator.getUserMedia({video: true, audio: false}, handleVideo, videoError);
+    }
+ 
+    function handleVideo(stream) {
+      var url = window.URL || window.webkitURL;
+       video.src = url ? url.createObjectURL(stream) : stream;
+        video.play();
+        //video.src = window.URL.createObjectURL(stream);
+        videoLoaded = true;
+    }
+ 
+    function videoError(e) {
+      alert("There seems to be something wrong with your webcam :(");
+    }
+  });
+
+</script>
+
+
+</body></html>

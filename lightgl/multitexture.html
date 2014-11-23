@@ -1,0 +1,104 @@
+<html><head><style type="text/css"></style></head><body cz-shortcut-listen="true" style="overflow: hidden;">
+  <script src="lightgl.js"></script>
+  <script id="baseVs" type="x-shader/x-vertex">
+  varying vec2 coord;
+  void main() {
+    coord = gl_TexCoord.xy;
+    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+  }
+  </script>
+  <script id="baseFs" type="x-shader/x-fragment">
+  
+  uniform sampler2D texture;
+  uniform sampler2D texture2;
+  varying vec2 coord;
+  void main() {
+    gl_FragColor = texture2D(texture, coord);
+  }
+  </script>
+  <script id="convolveFs" type="x-shader/x-fragment">
+    uniform sampler2D texture;
+    varying vec2 coord;
+    uniform float step_w;
+    uniform float step_h;
+    float kernel[9];
+    vec2 offset[9];
+
+    void main(){
+
+      vec4 tex0 = texture2D(texture, coord);
+
+      offset[0] = vec2(-step_w, -step_h); offset[1] = vec2(0.0, -step_h); offset[2] = vec2(step_w, -step_h);
+      offset[3] = vec2(-step_w, 0.0); offset[4] = vec2(0.0, 0.0); offset[5] = vec2(step_w, 0.0);
+      offset[6] = vec2(-step_w, step_h); offset[7] = vec2(0.0, step_h); offset[8] = vec2(step_w, step_h);
+
+      kernel[0] = 1.0; kernel[1] = 1.0; kernel[2] = 1.0;
+      kernel[3] = 1.0; kernel[4] = -8.0; kernel[5] = 1.0;
+      kernel[6] = 1.0; kernel[7] = 1.0; kernel[8] = 1.0;
+
+      for(int i = 0; i <9; i++){
+        tex0 += texture2D(texture, coord + offset[i]) * kernel[i];
+      }
+      gl_FragColor = tex0;
+    }
+  </script>
+  <script>
+var videoLoaded = true;
+var video = document.createElement('video');
+
+var gl = GL.create();
+var mesh = GL.Mesh.plane({ coords: true });
+var texture = GL.Texture.fromURL('v2Camel-cam.jpg');
+// var texture = GL.Texture.fromImage(video);
+// texture.bind(0);
+
+// var texture = GL.Texture.fromURL('image1.JPG');
+var baseVs = document.getElementById('baseVs').innerHTML;
+var baseFs = document.getElementById('baseFs').innerHTML;
+var convolveFs = document.getElementById('convolveFs').innerHTML;
+
+var shader = new GL.Shader(baseVs,baseFs);
+var sharpen = new GL.Shader(baseVs, convolveFs);
+
+var sharpenFbo = new GL.Texture(gl.canvas.width, gl.canvas.height);
+
+
+gl.onupdate = function(seconds) {
+};
+
+gl.ondraw = function() {
+  if(videoLoaded){
+    
+      sharpen.uniforms({
+          step_w: gl.canvas.width,
+          step_h: gl.canvas.height,
+          texture: 0
+      });
+     shader.uniforms({
+        texture: 0
+        // texture2: 1
+      })
+           texture.bind(0);
+
+      sharpenFbo.drawTo(function(){
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        shader.draw(mesh);
+      })
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.loadIdentity();
+      gl.translate(0, 0, -2);
+
+
+      // texture2.bind(1);
+ 
+      sharpen.draw(mesh);
+  }
+};
+
+gl.fullscreen();
+gl.animate();
+
+
+  </script><canvas width="1433" height="738" style="position: absolute; left: 0px; top: 0px;"></canvas>
+
+</body></html> 

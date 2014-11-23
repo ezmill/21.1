@@ -1,0 +1,199 @@
+<html>
+<head>
+	<title></title>
+	<style>
+	body {
+            /* set margin to 0 and overflow to hidden, to go fullscreen */
+            margin: 0;
+            overflow: hidden;
+    }
+	</style>
+</head>
+<body onload="webGLStart();">
+	<div id="container">
+		<canvas id="canvas" width="1280" height="1000" style="width: 100%; height:100%"></canvas>
+		<!-- <canvas id="canvas"></canvas> -->
+	</div>
+<script src="glMatrix_v0.9.5.js"></script>
+<script type="x-shader/x-fragment" id="frag">
+	#ifdef GL_FRAGMENT_PRECISION_HIGH
+		precision highp float;
+	#else
+		precision mediump float;
+	#endif
+		precision mediump int;
+		uniform vec2 uCanvasSize;
+		uniform float uThing;
+		uniform vec2 mouse;
+		// uniform vec2 uOffset;
+		// uniform float uScale;
+
+		vec4 calc(vec2 texCoord){
+			float x = 0.0;
+			float y = 0.0;
+			for (int i = 0; i < 100; ++i)
+			{
+				float xtemp = x*x-y*y+texCoord.x;
+				y = 20.0*x*y+texCoord.y;
+				x = xtemp;
+				float v = 10000.0;
+				float j = 10000.0;
+				v = min(v, fract(x*x+y*y));
+				j = min(j, fract(x*y));
+				if(x*x+y*y >= 1.0)
+				{
+					float d = (float(i)-(log(log(sqrt(x*x+y*y))) / log(2.0))) / 20.0;
+					v = (1.0 - v)/2.0;
+					j = (1.0 - j)/2.0;
+					return vec4(d+sin(fract(j*uThing)),d + fract(v + fract(j*uThing)), sin(uThing*v), 1.0);
+				}
+			}
+			return vec4(0.0,0.0,0.0,1.0);
+		}
+		void main( void ) {
+
+			// vec2 position = ( gl_FragCoord.xy / uCanvasSize ) *0.07+0.54- vec2(1.0,1.0);
+			vec2 position = ( gl_FragCoord.xy / uCanvasSize ) *0.3-vec2(0.54,-10.54)- vec2(1.0,1.0);
+			gl_FragColor = calc(position);
+
+
+		}
+</script>
+<script type="x-shader/x-vertex" id="vert">
+	attribute vec3 aVertexPosition;
+	uniform vec3 uTranslation;
+	void main() {
+		vec3 position = aVertexPosition + uTranslation;
+		gl_Position = vec4( position , 1.0 );
+
+	}
+</script>
+<script type="text/javascript">
+var thing = 1.0;
+function webGLStart(){
+	var canvas = document.getElementById("canvas");
+	 canvas.width = 1280*window.devicePixelRatio;
+	 canvas.height = 800*window.devicePixelRatio;
+
+	// canvas.width = 100%;
+	// canvas.height = 100%;
+	initGL(canvas);
+	initBuffers();
+	initShaders();
+
+	gl.clearColor(0.0,0.0,0.0,1.0);
+	gl.enable(gl.DEPTH_TEST);
+	drawScene();
+}
+
+function initGL(canvas){
+	try {
+		gl = canvas.getContext('experimental-webgl');
+		gl.viewportWidth = canvas.width;
+		gl.viewportHeight = canvas.height;
+	} catch(e){
+	}
+	if(!gl){
+		console.log("couldn't init gl");
+	}
+}
+var buffer
+function initBuffers(){
+	buffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+	var vertices = [ -1, -1, 1, -1, -1, 1, 1, 1];
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	buffer.itemSize = 2;
+	buffer.numItems = 4;
+}
+
+function initShaders(){
+	var fragmentShader = getShader(gl, 'frag');
+	var vertexShader = getShader(gl, 'vert');
+
+	shaderProgram = gl.createProgram();
+	gl.attachShader(shaderProgram, vertexShader);
+	gl.attachShader(shaderProgram, fragmentShader);
+	gl.linkProgram(shaderProgram);
+
+	if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)){
+		console.log("couldnt init shaders");
+	}
+
+	gl.useProgram(shaderProgram);
+
+	shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, 'aVertexPosition');
+	gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+	shaderProgram.canvasSizeUniform = gl.getUniformLocation(shaderProgram, 'uCanvasSize');
+	shaderProgram.thingUniform = gl.getUniformLocation(shaderProgram, 'uThing');
+	shaderProgram.mouse = gl.getUniformLocation(shaderProgram, 'mouse');
+	shaderProgram.translationUniform = gl.getUniformLocation(shaderProgram, "uTranslation");
+	// shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, 'uMVMatrix');
+}
+window.onmousemove = function(e){
+	gl.uniform2f(shaderProgram.mouse, e.clientX, e.clientY);
+}
+var translation = [0.0, 0.0, 0.0];
+var arr= [];
+function drawScene(){
+
+	thing+=0.3;
+	requestAnimationFrame(drawScene);
+	  // here is the most important part because if you dont replace you will get a DOM 18 exception.
+
+
+
+	gl.uniform2f(shaderProgram.canvasSizeUniform, canvas.width, canvas.height);
+	gl.uniform1f(shaderProgram.thingUniform, thing);
+	gl.uniform3fv(shaderProgram.translationUniform, translation);
+    gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, buffer.itemSize, gl.FLOAT, false, 0, 0);
+
+	gl.drawArrays(gl.TRIANGLE_STRIP, 0, buffer.numItems);
+	//var image = canvas.toDataURL("image/png");
+	//arr.push(image); // it will save locally
+	// console.log(image);
+
+
+}
+
+window.onclick= function(){
+	//cancelAnimationFrame(drawScene);
+	//console.log(arr);
+}
+function getShader(gl, id){
+	var shaderScript = document.getElementById(id);
+	if(!shaderScript){
+		return null;
+	}
+
+	var str = "";
+	var k = shaderScript.firstChild;
+	while(k){
+		if(k.nodeType == 3)
+			str += k.textContent;
+		k = k.nextSibling
+	}
+
+	var shader;
+	if (shaderScript.type == "x-shader/x-fragment"){
+		shader = gl.createShader(gl.FRAGMENT_SHADER);
+	} else if (shaderScript.type == "x-shader/x-vertex"){
+		shader = gl.createShader(gl.VERTEX_SHADER);
+	} else {
+		return null;
+	}
+	
+	gl.shaderSource(shader, str);
+	gl.compileShader(shader);
+
+	if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+		console.log(gl.getShaderInfoLog(shader));
+		return null;
+	}
+
+	return shader;
+}
+</script>
+</body>
+</html>

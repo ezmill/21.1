@@ -1,0 +1,517 @@
+<!-- pro tip go to github 9/16 for cool version -->
+<html>
+<head>
+  <title>pipe</title>
+
+  <script type="text/javascript" src="webgl-utils.js"></script>
+  <script type="text/javascript" src="fboTextureUtils_nearest.js"></script>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+</head>
+
+<body style="padding:0px; margin:0px;">
+  <div id="container">
+    <canvas id="canvas" style ="background:black; position:absolute;top:0;left:0;z-index:0; width:100%; height:100%;">
+      Update your browser, ya dingus! You need one that supports WebGL. Try Google Chrome.
+    </canvas>
+  </div>
+
+
+<script id="baseVs" type="x-shader/x-vertex">
+//attributes come from fboTextureUtils
+attribute vec3 pos;
+attribute vec4 color;
+attribute vec2 texcoord;
+
+varying vec2 v_texCoord;
+varying vec4 vColor;
+
+void main() {
+   gl_Position = vec4(pos.x,pos.y,pos.z,1.0);
+   v_texCoord = texcoord;
+   vColor = color;
+}
+</script>
+
+<script id="fbVs" type="x-shader/x-vertex">
+//attributes come from fboTextureUtils
+attribute vec3 pos;
+attribute vec4 color;
+attribute vec2 texcoord;
+
+varying vec2 v_texCoord;
+varying vec4 vColor;
+
+uniform vec2 mouse;
+
+vec2 scale = vec2(1.01,1.01);
+void main() {
+   gl_Position = vec4(pos.x*scale.x,pos.y*scale.y,pos.z,1.0);
+   v_texCoord = texcoord;
+   vColor = color;
+}
+</script>
+
+
+<script type="x-shader/x-fragment" id="baseFs"> 
+precision mediump float;
+uniform sampler2D u_image;
+uniform vec2 center;
+uniform float angle;
+uniform float scale;
+uniform vec2 texSize;
+varying vec2 v_texCoord;
+
+float pattern(float angle) {
+  float s = sin(angle), c = cos(angle);
+  vec2 tex = v_texCoord * texSize - center;
+  vec2 point = vec2(
+  c * tex.x - s * tex.y,
+  s * tex.x + c * tex.y
+  ) * scale;
+  return (cos(point.x) * cos(point.y)) *1.0;
+}
+
+void main() {
+  vec4 color = texture2D(u_image, v_texCoord);
+  vec3 cmy = 1.0 - color.rgb;
+  float k = min((cmy.x), min(cmy.y, cmy.z));
+  cmy = (cmy - k) / (1.0 - k);
+  cmy = clamp(cmy * 10.0 - 3.0 + vec3(pattern(angle + 0.26179), pattern(angle + 1.30899), pattern(angle)), 0.0, 1.0);
+  k = clamp(k * 100.0 -75.0 + pattern(angle + 0.78539), 0.0, 1.0);
+  gl_FragColor = vec4(ceil(fract(dot((1.0-cmy.r-k), texture2D(u_image, v_texCoord).r))),
+                      ceil(fract(dot((1.0-cmy.g-k), texture2D(u_image, v_texCoord).g))),
+                      ceil(fract(dot((1.0-cmy.b-k), texture2D(u_image, v_texCoord).b))),
+                      1.0);
+  // gl_FragColor = texture2D(u_image, v_texCoord);
+}
+
+</script>
+
+<script type="x-shader/x-fragment" id="drawFs"> 
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_texCoord;
+
+void main() {
+
+
+  gl_FragColor = texture2D(u_image, v_texCoord)  ;
+}
+</script>
+
+<script id="convolveFs" type="x-shader/x-fragment">
+precision mediump float;
+uniform sampler2D u_image;
+uniform float step_w;
+uniform float step_h;
+uniform vec2 res;
+uniform vec2 mouse;
+uniform float time;
+
+uniform float kernel[9];
+uniform float kernel2[9];
+uniform float kernel3[9];
+uniform float kernel4[9];
+
+vec2 offset[9];
+vec2 offset2[9];
+vec2 offset3[9];
+
+varying vec2 v_texCoord;
+
+mat2 m = mat2( 0.80,  0.60, -0.60,  0.80 );
+
+float hash( float n )
+{
+    return fract(sin(n)*43758.5453);
+}
+
+float noise( in vec2 x )
+{
+    vec2 p = floor(x+sqrt(time/1.));
+    vec2 f = fract(x+sqrt(time/1.));
+    f = f*f*(3.0-2.0*f);
+    float n = p.x + p.y*57.0;
+    float res = mix(mix( hash(n+  0.0), hash(n+  1.0),f.x), mix( hash(n+ 57.0), hash(n+ 58.0),f.x),f.y);
+    return res;
+}
+float fbm( vec2 p )
+{
+    float f = 0.0;
+    f += 0.90000*noise( p ); p = m*p*2.02;
+    f += 0.25000*noise( p ); p = m*p*2.03;
+    f += 0.12500*noise( p ); p = m*p*2.01;
+    f += 0.06250*noise( p ); p = m*p*2.04;
+    f += 0.03125*noise( p );
+    return f/0.984375;
+}
+void main() {
+
+  vec2 tc = v_texCoord;
+  vec4 input0 = texture2D(u_image,tc);
+   
+  vec2 x1 = vec2(step_w, 0.0);
+  vec2 y1 = vec2(0.0, step_h);
+  offset[0] = vec2(-step_w, -step_h);
+  offset[1] = vec2(0.0, -step_h);
+  offset[2] = vec2(step_w, -step_h);
+  offset[3] = vec2(-step_w, 0.0);
+  offset[4] = vec2(0.0, 0.0);
+  offset[5] = vec2(step_w, 0.0);
+  offset[6] = vec2(-step_w, step_h);
+  offset[7] = vec2(0.0, step_h);
+  offset[8] = vec2(step_w, step_h);
+
+  vec2 step2 = 1.0/(res*0.0);//0.33125);//0.006249999999999978);
+  offset2[0] = vec2(-step2.x, -step2.y);
+  offset2[1] = vec2(0.0, -step2.y);
+  offset2[2] = vec2(step2.x, -step2.y);
+  offset2[3] = vec2(-step2.x, 0.0);
+  offset2[4] = vec2(0.0, 0.0);
+  offset2[5] = vec2(step2.x, 0.0);
+  offset2[6] = vec2(-step2.x, step2.y);
+  offset2[7] = vec2(0.0, step2.y);
+  offset2[8] = vec2(step2.x, step2.y);
+
+  vec2 step3 = 1.0/(res*0.0);// 0.9705882352941176);//*0.4410150891632373);
+  offset3[0] = vec2(-step3.x, -step3.y);
+  offset3[1] = vec2(0.0, -step3.y);
+  offset3[2] = vec2(step3.x, -step3.y);
+  offset3[3] = vec2(-step3.x, 0.0);
+  offset3[4] = vec2(0.0, 0.0);
+  offset3[5] = vec2(step3.x, 0.0);
+  offset3[6] = vec2(-step3.x, step3.y);
+  offset3[7] = vec2(0.0, step3.y);
+  offset3[8] = vec2(step3.x, step3.y);
+
+  vec4 sum = texture2D(u_image, v_texCoord)*0.92;
+  sum += texture2D(u_image, v_texCoord + offset[0]) * kernel[0];
+  sum += texture2D(u_image, v_texCoord + offset[1]) * kernel[1];
+  sum += texture2D(u_image, v_texCoord + offset[2]) * kernel[2];
+  sum += texture2D(u_image, v_texCoord + offset[3]) * kernel[3];
+  sum += texture2D(u_image, v_texCoord + offset[4]) * kernel[4];
+  sum += texture2D(u_image, v_texCoord + offset[5]) * kernel[5];
+  sum += texture2D(u_image, v_texCoord + offset[6]) * kernel[6];
+  sum += texture2D(u_image, v_texCoord + offset[7]) * kernel[7];
+  sum += texture2D(u_image, v_texCoord + offset[8]) * kernel[8];
+  // sum/=9.0;
+  sum += texture2D(u_image, v_texCoord + offset2[0]) * kernel2[0];
+  sum += texture2D(u_image, v_texCoord + offset2[1]) * kernel2[1];
+  sum += texture2D(u_image, v_texCoord + offset2[2]) * kernel2[2];
+  sum += texture2D(u_image, v_texCoord + offset2[3]) * kernel2[3];
+  sum += texture2D(u_image, v_texCoord + offset2[4]) * kernel2[4];
+  sum += texture2D(u_image, v_texCoord + offset2[5]) * kernel2[5];
+  sum += texture2D(u_image, v_texCoord + offset2[6]) * kernel2[6];
+  sum += texture2D(u_image, v_texCoord + offset2[7]) * kernel2[7];
+  sum += texture2D(u_image, v_texCoord + offset2[8]) * kernel2[8];
+  // sum /= 9.0;
+  sum += texture2D(u_image, v_texCoord + offset3[0]) * kernel3[0];
+  sum += texture2D(u_image, v_texCoord + offset3[1]) * kernel3[1];
+  sum += texture2D(u_image, v_texCoord + offset3[2]) * kernel3[2];
+  sum += texture2D(u_image, v_texCoord + offset3[3]) * kernel3[3];
+  sum += texture2D(u_image, v_texCoord + offset3[4]) * kernel3[4];
+  sum += texture2D(u_image, v_texCoord + offset3[5]) * kernel3[5];
+  sum += texture2D(u_image, v_texCoord + offset3[6]) * kernel3[6];
+  sum += texture2D(u_image, v_texCoord + offset3[7]) * kernel3[7];
+  sum += texture2D(u_image, v_texCoord + offset3[8]) * kernel3[8]; 
+
+  sum += texture2D(u_image, v_texCoord + offset3[0]) * kernel4[0];
+  sum += texture2D(u_image, v_texCoord + offset3[1]) * kernel4[1];
+  sum += texture2D(u_image, v_texCoord + offset3[2]) * kernel4[2];
+  sum += texture2D(u_image, v_texCoord + offset3[3]) * kernel4[3];
+  sum += texture2D(u_image, v_texCoord + offset3[4]) * kernel4[4];
+  sum += texture2D(u_image, v_texCoord + offset3[5]) * kernel4[5];
+  sum += texture2D(u_image, v_texCoord + offset3[6]) * kernel4[6];
+  sum += texture2D(u_image, v_texCoord + offset3[7]) * kernel4[7];
+  sum += texture2D(u_image, v_texCoord + offset3[8]) * kernel4[8];
+  // sum /= 9.0;
+
+
+
+
+  float kernelWeight =
+   kernel[0] +
+  kernel2[0] +
+  kernel3[0] +
+  kernel4[0]  +
+   kernel[1] +
+  kernel2[1] +
+  kernel3[1] +
+  kernel4[1]  +
+   kernel[2] +
+  kernel2[2] +
+  kernel3[2] +
+  kernel4[2]  +
+   kernel[3] +
+  kernel2[3] +
+  kernel3[3] +
+  kernel4[3]  +
+   kernel[4] +
+  kernel2[4] +
+  kernel3[4] +
+  kernel4[4]  +
+   kernel[5] +
+  kernel2[5] +
+  kernel3[5] +
+  kernel4[5]  +
+   kernel[6] +
+  kernel2[6] +
+  kernel3[6] +
+  kernel4[6]  +
+   kernel[7] +
+  kernel2[7] +
+  kernel3[7] +
+  kernel4[7]  +
+   kernel[8] +
+  kernel2[8] +
+  kernel3[8] + 
+  kernel4[8];
+  if (kernelWeight <= 0.0) {
+     kernelWeight = 1.0;
+   }
+  gl_FragColor = vec4((sum/kernelWeight).rgb, 1.0);
+}
+</script>
+
+<script type="text/javascript">
+var gl, canvas, fbo, fbo2, fbo3;
+var baseProgram, baseTexture, drawProgram;
+var baseVs, baseFs, drawFs, fbVs;
+var camTex;
+var videoLoaded = false;
+var firstFrame = true;
+var delay = 0;
+var time = 0.0;
+var mapMouseX, mapMouseY, mouseX, mouseY;
+
+document.addEventListener('mousemove', onDocumentMouseMove, false);
+
+
+var video = document.createElement("video");
+canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+document.addEventListener('mousedown', onDocumentMouseDown, false);
+
+
+initGl();
+initFbo();
+getCamAsTexture();
+loop();
+
+function initFbo () {
+  baseTexture = new pxBB();
+  fbo = new pxFbo();
+  fbo2 = new pxFbo();
+  convolve = new pxFbo();
+
+  fbo.allocate(canvas.width, canvas.height);
+  fbo2.allocate(canvas.width, canvas.height);
+  convolve.allocate(canvas.width, canvas.height);
+
+
+  baseVs = createShaderFromScriptElement(gl, "baseVs");
+  fbVs = createShaderFromScriptElement(gl, "fbVs");
+  baseFs = createShaderFromScriptElement(gl, "baseFs");
+  drawFs = createShaderFromScriptElement(gl, "drawFs");
+  convolveFs = createShaderFromScriptElement(gl, "convolveFs");
+
+  baseProgram = createProgram(gl, [fbVs, baseFs]);
+  drawProgram = createProgram(gl, [baseVs, drawFs]);
+  convolveProgram = createProgram(gl, [baseVs, convolveFs]);
+
+  //fbo.start();
+  //gl.useProgram(baseProgram);
+  //gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  //fbo.draw(baseProgram);
+  gl.useProgram(convolveProgram);
+  var step_w = gl.getUniformLocation(convolveProgram,"step_w");
+  gl.uniform1f(step_w, 1.0/canvas.width);
+  var step_h = gl.getUniformLocation(convolveProgram,"step_h");
+  gl.uniform1f(step_h, 1.0/canvas.height);
+  var res = gl.getUniformLocation(convolveProgram,"step_h");
+  gl.uniform2f(res, canvas.width, canvas.height);
+  var k = gl.getUniformLocation(convolveProgram,"kernel");
+  gl.uniform1fv(k, [
+    // 0,-1,0,
+    // -1,7,-1,
+    // 0,-1,0.2
+    -2, 1, 0,
+    -1, 1, 1,
+     0, 1, 2
+  ]);
+  var k2 = gl.getUniformLocation(convolveProgram,"kernel2");
+  gl.uniform1fv(k2, [
+    1,0,-1,
+    0, 5, 0,
+    -1, 0, 1
+    //     -2, 1, 0,
+    // -1, 1, 1,
+    //  0, 1, 2
+  ]);
+  var k3 = gl.getUniformLocation(convolveProgram,"kernel3");
+  gl.uniform1fv(k3, [
+    0.0625, 0.125, 0.0625,
+    0.125,  0.25,  0.125,
+    0.0625, 0.125, 0.0625
+    //     -2, 1, 0,
+    // -1, 1, 1,
+    //  0, 1, 2
+       //     -1, -1, -1,
+       // -1,  8, -1,
+       // -1, -1, -1
+  ]);
+  var k4 = gl.getUniformLocation(convolveProgram,"kernel4");
+  gl.uniform1fv(k4, [
+    // 0.0625, 0.125, 0.0625,
+    // 0.125,  0.25,  0.125,
+    // 0.0625, 0.125, 0.0625
+       -2, -1,  0,
+       -1,  1,  1,
+        0,  1,  2
+
+  ]);
+
+
+}
+
+/*
+fbo1.start() 
+fbo2.draw() 
+
+convolve.start() 
+fbo1.draw() 
+
+fbo2.start() 
+convolve.draw()
+*/
+var c = 5.0;
+function loop(){
+  window.requestAnimationFrame(loop);
+  if(videoLoaded){
+     if(delay > 100){
+      getNewImg();
+      delay++;
+     } else if (delay == 150){
+      getNewImg();
+      delay = 0;
+     }
+    time+=0.001;
+
+
+
+    fbo.start();
+    gl.useProgram(baseProgram);
+    gl.uniform2f(gl.getUniformLocation(baseProgram,"res"), canvas.width, canvas.height);
+    gl.uniform2f(gl.getUniformLocation(baseProgram,"center"), canvas.width/2, canvas.height/2);
+    gl.uniform2f(gl.getUniformLocation(baseProgram,"texSize"),mapMouseX2*10.0,mapMouseY2*10.0);//0.11527777777777778*10.0, 0.13291139240506333*10.0);
+    gl.uniform1f(gl.getUniformLocation(baseProgram, "time"), time);
+    gl.uniform1f(gl.getUniformLocation(baseProgram, "angle"), 0.0);
+    gl.uniform1f(gl.getUniformLocation(baseProgram, "scale"), 1.0);
+    gl.uniform2f(gl.getUniformLocation(baseProgram, "mouse"), mapMouseX, mapMouseY);
+    gl.useProgram(convolveProgram);
+    gl.uniform2f(gl.getUniformLocation(convolveProgram, "mouse"), mapMouseX3, mapMouseY3);
+    gl.uniform1f(gl.getUniformLocation(convolveProgram, "time"), time);
+
+
+
+    fbo2.draw(drawProgram);
+
+    convolve.start();
+    fbo.draw(convolveProgram);
+
+
+
+    fbo2.start();
+    convolve.draw(baseProgram);
+    // gl.enable(gl.BLEND);
+    // gl.blendFunc(gl.ONE_MINUS_DST_COLOR,gl.DST_COLOR); //blend it
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    fbo2.draw(drawProgram);
+    // gl.disable(gl.BLEND);
+
+    gl.bindTexture(gl.TEXTURE_2D, camTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+  }
+
+}
+
+function initGl(){
+  gl = getWebGLContext(canvas);
+}
+
+function initUniforms(w,h,time,mouse){
+
+}
+
+function getCamAsTexture(){
+  //create camera texture
+  camTex = createAndSetupTexture(gl);
+  camTex.image = video;
+
+  gl.bindTexture(gl.TEXTURE_2D, camTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+}
+
+function getNewImg(){
+   //gets a new frame
+   // requestAnimationFrame(getNewImg);
+   fbo2.start();
+   baseTexture.draw(drawProgram, camTex);
+}
+
+function onDocumentMouseDown(){
+  getNewImg();
+}
+
+// requestAnimationFrame(getNewImg);
+
+//capture video
+  window.addEventListener('DOMContentLoaded', function(){
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+ 
+    if (navigator.getUserMedia) {       
+        navigator.getUserMedia({video: true, audio: false}, handleVideo, videoError);
+    }
+ 
+    function handleVideo(stream) {
+      var url = window.URL || window.webkitURL;
+       video.src = url ? url.createObjectURL(stream) : stream;
+        video.play();
+        //video.src = window.URL.createObjectURL(stream);
+        videoLoaded = true;
+    }
+ 
+    function videoError(e) {
+      alert("There seems to be something wrong with your webcam :(");
+    }
+  });
+function map(value,max,minrange,maxrange) {
+    return ((max-value)/(max))*(maxrange-minrange)+minrange;
+}
+
+function onDocumentMouseMove(event) {
+    mouseX = (event.clientX );
+    mouseY = (event.clientY );
+
+    // mapMouseX = map(mouseX, window.innerWidth, 0.0001,0.25);
+    // mapMouseY = map(mouseY, window.innerHeight, 0.0001,0.25);
+
+    mapMouseX = map(mouseX, window.innerWidth, 0.99, 1.01);
+    mapMouseY = map(mouseY, window.innerHeight, 0.99,1.01);
+
+    mapMouseX2 = map(mouseX, window.innerWidth, 0.0,1.0);
+    mapMouseY2 = map(mouseY, window.innerHeight, 1.0,0.0);
+
+    mapMouseX3 = map(mouseX, window.innerWidth, -1.0,1.0);
+    mapMouseY3 = map(mouseY, window.innerHeight, -1.0,1.0);
+
+    console.log(mapMouseX2, mapMouseY2);
+    //getNewImg();
+}
+</script>
+
+</body>
+</html>
+  

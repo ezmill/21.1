@@ -1,0 +1,81 @@
+<html>
+<head></head>
+<body style="overflow: hidden;">
+  <!-- // <script src="gazebo.js"></script> -->
+  <script src="lightgl.js"></script>
+  <script id="Vs" type="x-shader/x-vertex">
+  varying vec2 coord;
+  void main() {
+    coord = gl_TexCoord.xy;
+    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+  }
+  </script>
+  <script type="x-shader/x-fragment" id="Fs">
+    #ifdef GL_ES
+    precision mediump float;
+    #endif
+
+    uniform sampler2D texture;
+    varying vec2 coord;
+    void main( void ) 
+    {
+  
+      gl_FragColor = texture2D(texture,coord);
+      // gl_FragColor = vec4(1.0,0.0,0.0,0.0);
+    }
+  </script>
+  <script>
+var videoLoaded = false;
+var video = document.createElement('video');
+  window.addEventListener('DOMContentLoaded', function(){
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+ 
+    if (navigator.getUserMedia) {       
+        navigator.getUserMedia({video: true, audio: false}, handleVideo, videoError);
+    }
+ 
+    function handleVideo(stream) {
+      var url = window.URL || window.webkitURL;
+       video.src = url ? url.createObjectURL(stream) : stream;
+        video.play();
+        //video.src = window.URL.createObjectURL(stream);
+        videoLoaded = true;
+    }
+ 
+    function videoError(e) {
+      alert("There seems to be something wrong with your webcam :(");
+    }
+  });
+var gl = GL.create();
+var mesh = GL.Mesh.plane();
+var texture = GL.Texture.fromURL('v2Camel-cam.jpg');
+var Vs = document.getElementById('Vs').innerHTML;
+var Fs = document.getElementById('Fs').innerHTML;
+
+var shader = new GL.Shader(Vs, Fs);
+
+
+gl.onupdate = function(){
+}
+gl.ondraw = function(){
+  if (videoLoaded) {
+    texture.drawTo(function() {
+      
+      shader.uniforms({texture:0}).draw(mesh);
+    });
+    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    shader.uniforms({
+      texture: 0
+    }).draw(mesh);
+    texture.unbind(0);
+  }
+}
+gl.fullscreen();
+gl.animate();
+
+
+
+
+  </script><canvas width="1101" height="365" style="position: absolute; left: 0px; top: 0px;"></canvas>
+
+</body></html>

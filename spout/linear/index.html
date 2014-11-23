@@ -1,0 +1,354 @@
+<html>
+<head>
+
+</head>
+<body>
+  <div id="container">
+    <canvas id="canvas" style ="background:black; position:absolute;top:0;left:0;z-index:0; width:100%; height:100%;">
+      Sorry but you're browser doesn't support the canvas :(
+    </canvas>
+  </div>
+  <script type="text/javascript" src="webgl-utils.js"></script>
+  <script type="text/javascript" src="fboTextureUtils.js"></script>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+
+<script id="baseVs" type="x-shader/x-vertex">
+attribute vec3 pos;
+attribute vec4 color;
+attribute vec2 texcoord;
+
+varying vec2 v_texCoord;
+varying vec4 vColor;
+
+void main() {
+
+   gl_Position = vec4((pos.x*1.0),pos.y,pos.z,1.0);
+   v_texCoord = texcoord;
+   vColor = color;
+
+}
+</script>
+
+<script id="translateVs" type="x-shader/x-vertex">
+attribute vec3 pos;
+attribute vec4 color;
+attribute vec2 texcoord;
+
+varying vec2 v_texCoord;
+varying vec4 vColor;
+
+uniform float u_mouseX;
+uniform float u_mouseY;
+
+vec2 scale = vec2(u_mouseX, u_mouseY);
+void main() {
+
+   gl_Position = vec4(pos.x*scale.x,pos.y*scale.y,pos.z,1.0);
+   v_texCoord = texcoord;
+   vColor = color;
+
+}
+</script>
+
+
+<script id="baseFs" type="x-shader/x-fragment">
+precision mediump float;
+uniform sampler2D u_image;
+varying vec2 v_texCoord;
+
+void main() {
+  vec4 color = texture2D(u_image, v_texCoord);
+  gl_FragColor = vec4(color.r,color.g,color.b,1.0);
+}
+</script>
+
+
+<script id="diffFs" type="x-shader/x-fragment">
+precision mediump float;
+uniform sampler2D u_image;
+uniform sampler2D u_image2;
+uniform sampler2D u_image3;
+varying vec2 v_texCoord;
+
+void main() {
+  vec4 tex0 = texture2D(u_image, v_texCoord);
+  vec4 tex1 = texture2D(u_image2, v_texCoord);
+  vec4 tex2 = texture2D(u_image3, v_texCoord);
+
+  vec4 fc = (tex2 - tex1);
+  float avg = dot(tex2.rgb - tex1.rgb, vec3(1.0))/3.0;
+  //fc = avg <= 0.01  ? fc : 1.0-fc;
+  vec4 add = (fc + tex0);
+  gl_FragColor = mod(add,tex2.r);
+  // gl_FragColor = smoothstep(tex1,tex0,mod(add,tex2.r));
+}
+</script>
+<script id="convolveFs" type="x-shader/x-fragment">
+precision mediump float;
+uniform sampler2D u_image;
+uniform sampler2D u_image2;
+uniform sampler2D u_image3;
+
+varying vec2 v_texCoord;
+
+uniform float step_w;
+uniform float step_h;
+uniform vec2 res;
+uniform vec2 mouse;
+uniform float time;
+
+uniform float kernel[9];
+uniform float kernel2[9];
+uniform float kernel3[9];
+
+vec2 offset[9];
+vec2 offset2[9];
+vec2 offset3[9];
+
+void main() {
+  vec4 tex0 = texture2D(u_image, v_texCoord);
+  vec4 tex1 = texture2D(u_image2, v_texCoord);
+  vec4 tex2 = texture2D(u_image3, v_texCoord);
+
+  vec2 x1 = vec2(step_w, 0.0);
+  vec2 y1 = vec2(0.0, step_h);
+  offset[0] = vec2(-step_w, -step_h);
+  offset[1] = vec2(0.0, -step_h);
+  offset[2] = vec2(step_w, -step_h);
+  offset[3] = vec2(-step_w, 0.0);
+  offset[4] = vec2(0.0, 0.0);
+  offset[5] = vec2(step_w, 0.0);
+  offset[6] = vec2(-step_w, step_h);
+  offset[7] = vec2(0.0, step_h);
+  offset[8] = vec2(step_w, step_h);
+
+  vec2 step2 = 1.0/(res*0.009);
+  offset2[0] = vec2(-step2.x, -step2.y);
+  offset2[1] = vec2(0.0, -step2.y);
+  offset2[2] = vec2(step2.x, -step2.y);
+  offset2[3] = vec2(-step2.x, 0.0);
+  offset2[4] = vec2(0.0, 0.0);
+  offset2[5] = vec2(step2.x, 0.0);
+  offset2[6] = vec2(-step2.x, step2.y);
+  offset2[7] = vec2(0.0, step2.y);
+  offset2[8] = vec2(step2.x, step2.y);
+
+  vec2 step3 = 1.0/(res*0.009);
+  offset3[0] = vec2(-step3.x, -step3.y);
+  offset3[1] = vec2(0.0, -step3.y);
+  offset3[2] = vec2(step3.x, -step3.y);
+  offset3[3] = vec2(-step3.x, 0.0);
+  offset3[4] = vec2(0.0, 0.0);
+  offset3[5] = vec2(step3.x, 0.0);
+  offset3[6] = vec2(-step3.x, step3.y);
+  offset3[7] = vec2(0.0, step3.y);
+  offset3[8] = vec2(step3.x, step3.y);
+  vec4 sum = texture2D(u_image, v_texCoord)*0.92;
+  float kernelWeight =0.0;
+
+  for(int i = 0; i <9; i++){
+    sum += texture2D(u_image, v_texCoord + offset[i]) * kernel[i];
+    sum += texture2D(u_image, v_texCoord + offset2[i]) * kernel2[i];
+    sum += texture2D(u_image, v_texCoord + offset3[i]) * kernel3[i];
+    kernelWeight += kernel[i];
+    kernelWeight += kernel2[i];
+    kernelWeight += kernel3[i];
+
+  }
+
+  if (kernelWeight <= 0.0) {
+     kernelWeight = 1.0;
+   }
+  gl_FragColor = vec4((sum/kernelWeight).rgb, 1.0);
+}
+</script>
+
+<script type="text/javascript">
+var gl, cBB, canvas, prevFbo, diffFbo, feebackFbo, convolveFbo;
+var baseProgram, diffProgram, convolveProgram;
+var baseVs, translateVs, baseFs, diffFs, convolveFs;
+var camTex;
+var videoLoaded = false;
+var mouseX, mouseY;
+var mapMouseX = 1.01;
+var mapMouseY = 1.01;
+var mapMouseX2 = 1.0;
+var mapMouseY2 = 1.0;
+var video=document.createElement('video');
+
+canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+document.addEventListener('mousemove', onDocumentMouseMove, false);
+document.addEventListener('mousedown', onDocumentMouseDown, false);
+
+initGl();
+initFbosAndShaders();
+getCamAsTexture();
+loop();
+
+
+function initGl(){
+gl = getWebGLContext(canvas);
+}
+
+function initFbosAndShaders(){
+cBB = new pxBB();
+
+prevFbo = new pxFbo();
+diffFbo = new pxFbo();
+feedbackFbo = new pxFbo();
+convolveFbo = new pxFbo();
+
+prevFbo.allocate(window.innerWidth, window.innerHeight, true);
+diffFbo.allocate(window.innerWidth, window.innerHeight, true);
+feedbackFbo.allocate(window.innerWidth, window.innerHeight, true);
+convolveFbo.allocate(window.innerWidth, window.innerHeight, true);
+
+baseVs = createShaderFromScriptElement(gl, "baseVs");
+translateVs = createShaderFromScriptElement(gl, "translateVs");
+
+baseFs = createShaderFromScriptElement(gl, "baseFs");
+diffFs = createShaderFromScriptElement(gl, "diffFs");
+convolveFs = createShaderFromScriptElement(gl, "convolveFs");
+
+baseProgram = createProgram(gl, [baseVs, baseFs]);
+diffProgram = createProgram(gl, [translateVs, diffFs]);
+convolveProgram = createProgram(gl, [baseVs, convolveFs]);
+
+gl.useProgram(convolveProgram);
+var step_w = gl.getUniformLocation(convolveProgram,"step_w");
+  gl.uniform1f(step_w, 1.0/canvas.width);
+  var step_h = gl.getUniformLocation(convolveProgram,"step_h");
+  gl.uniform1f(step_h, 1.0/canvas.height);
+  var res = gl.getUniformLocation(convolveProgram,"step_h");
+  gl.uniform2f(res, canvas.width, canvas.height);
+  var k = gl.getUniformLocation(convolveProgram,"kernel");
+  gl.uniform1fv(k, [
+    // -2, 1, 0,
+    // -1, 1, 1,
+    //  0, 1, 2
+       -5, -5, -5,
+       -5, 39, -5,
+       -5, -5, -5
+  ]);
+  var k2 = gl.getUniformLocation(convolveProgram,"kernel2");
+  gl.uniform1fv(k2, [       
+
+    0.08, 0.08, 0.0,
+    0.08, 0.0, 0.0,
+     0.0, 0.00, -0.241
+
+  ]);
+  var k3 = gl.getUniformLocation(convolveProgram,"kernel3");
+  gl.uniform1fv(k3, [
+   -0.241,  0.0, 0.00,
+     0.0, 0.0,0.08,
+    0.0, 0.08, 0.08
+       //  1,  1,  1,
+       //  0,  0,  0,
+       // -1, -1, -1
+
+  ]);
+
+}
+
+
+function loop(){
+window.requestAnimationFrame(loop);
+
+if(videoLoaded){
+ 
+ diffFbo.start();
+ gl.useProgram(diffProgram);
+ gl.uniform1f(gl.getUniformLocation(diffProgram, "u_mouseX"), mapMouseX);
+ gl.uniform1f(gl.getUniformLocation(diffProgram, "u_mouseY"), mapMouseY);
+ gl.useProgram(convolveProgram);
+ gl.uniform2f(gl.getUniformLocation(diffProgram, "mouse"), mapMouseX2, mapMouseY2);
+ feedbackFbo.draw3(diffProgram, camTex, prevFbo.texture);
+
+
+ feedbackFbo.start();
+ diffFbo.draw(baseProgram);
+
+ prevFbo.start();
+ cBB.draw(baseProgram, camTex);
+ 
+ convolveFbo.start();
+ feedbackFbo.draw(baseProgram);
+   gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE_MINUS_DST_COLOR,gl.DST_COLOR); 
+ gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+ feedbackFbo.draw(convolveProgram);
+
+ gl.bindTexture(gl.TEXTURE_2D, camTex);
+ gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+
+}//end of videoLoaded 
+}
+
+
+function getCamAsTexture(){
+  camTex = createAndSetupTexture(gl);
+  camTex.image = video;
+  gl.bindTexture(gl.TEXTURE_2D, camTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camTex.image);
+}
+
+function getNewImg(){
+   //feedback.start();
+   //flowFbo.draw(baseProgram);
+   //gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+function map(value,max,minrange,maxrange) {
+    return ((max-value)/(max))*(maxrange-minrange)+minrange;
+}
+
+function onDocumentMouseMove(event) {
+    mouseX = (event.clientX );
+    mouseY = (event.clientY );
+
+    mapMouseX = map(mouseX, window.innerWidth, 1.09,0.99);
+    mapMouseY = map(mouseY, window.innerHeight, 1.09,0.99);
+    mapMouseX2 = map(mouseX, window.innerWidth, 0.001,0.01);
+    mapMouseY2 = map(mouseY, window.innerHeight, 0.001,0.01);
+    //getNewImg();
+}
+
+function onDocumentMouseDown(event) {
+    getNewImg();
+}
+
+  window.addEventListener('DOMContentLoaded', function(){
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+ 
+    if (navigator.getUserMedia) {       
+        navigator.getUserMedia({video: true, audio: false}, handleVideo, videoError);
+    }
+ 
+    function handleVideo(stream) {
+      var url = window.URL || window.webkitURL;
+       video.src = url ? url.createObjectURL(stream) : stream;
+        video.play();
+        //video.src = window.URL.createObjectURL(stream);
+        videoLoaded = true;
+    }
+ 
+    function videoError(e) {
+      alert("There seems to be something wrong with your webcam :(");
+    }
+  });
+
+</script>
+
+
+
+
+
+</body>
+
+
+
+</html>

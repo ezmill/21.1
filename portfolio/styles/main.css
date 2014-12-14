@@ -26,6 +26,10 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: "Old Standard TT";
+  background:
+  radial-gradient(circle at 93.3% 75%, rgba(199, 199, 199, 0.5), rgba(247, 247, 247, 0) 70.71%), 
+  radial-gradient(circle at 6.7% 75%, rgba(152, 152, 152, 0.5), rgba(220,220,220,0) 70.71%), 
+  radial-gradient(circle at 50% 0, rgba(176, 176, 176, 0.5), rgba(100,100,100,0) 70.71%);
 }
 
 h4{
@@ -48,19 +52,18 @@ h4{
 
 .top-bar {
   width: 100%;
-  height: 10vh;
+  height: 65px;
   /*background-color: rgba(220,220,220, .4);*/
   z-index: 3;
   position: relative;
 }
-.top-bar a{
+.top-bar span{
 
   margin-left: 2vw;
-  margin-top: -2vh;
-  margin-right: 10vw;
+  margin-top: -10px;
   position: absolute;
   /*color: black;*/
-  font-size: 10vh;
+  font-size: 65px;
   text-decoration: none;
 }
 .top-bar a:hover{
@@ -70,15 +73,16 @@ h4{
 }
 
 .main-content {
-  width: 100vw;
-  height: 100vh;
-  margin-top: -10vh;
+  width: 100%;
+  overflow: hidden;
+
+  /*width: 100vw;*/
+  height: 100%;
+  /*height: 100vh;*/
+  margin-top: -65px;
   position: absolute;
   /*background-color: rgba(127,127,127, 0.5);*/
-  background:
-  radial-gradient(circle at 93.3% 75%, rgba(199, 199, 199, 0.5), rgba(247, 247, 247, 0) 70.71%), 
-  radial-gradient(circle at 6.7% 75%, rgba(152, 152, 152, 0.5), rgba(220,220,220,0) 70.71%), 
-  radial-gradient(circle at 50% 0, rgba(176, 176, 176, 0.5), rgba(100,100,100,0) 70.71%);
+
 }
 nav {
   overflow-y: scroll;
@@ -166,7 +170,7 @@ img{
 }
 
 #main-nav{
-  margin-top: 10vh;
+  margin-top: 75px;
     overflow-y: scroll;
 
 }
@@ -204,8 +208,9 @@ a.navs {
   display: block;
   position: relative;
   /*text-align: center;*/
-  color: black;
-  -webkit-text-stroke-width:0px;
+  color: white;
+  -webkit-text-stroke-width:1px;
+  -webkit-text-stroke-color:black;
 
   font-family: 'Old Standard TT';
   line-height: 75px;
@@ -213,7 +218,7 @@ a.navs {
   height: 75px;
   /*margin-left:2vw;*/
   padding-left: 2vw;
-  font-size: 1.25em;
+  font-size: 65px;
 }
 
 a.navs:active {
@@ -236,6 +241,8 @@ a.navs:hover{
   /*text-align: center;*/
   /*text-decoration: underline;*/
   background-color: #fff;
+    /*-webkit-text-stroke-width: 0px;*/
+
   /*color: #000; */
   /*width:101%;*/
 

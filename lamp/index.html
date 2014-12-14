@@ -237,7 +237,6 @@ var video=document.createElement('video');
 video.src = "lamp.mp4";
 video.loop = true;
 video.playbackRate = 0.25;
-video.play();
 videoLoaded = true;
 canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
@@ -413,6 +412,7 @@ function onDocumentMouseDown(event) {
     counter--;
   } else if(counter === 0){
     document.getElementById("intro").style.display = "none";
+    video.play();
     init();
   } else if(counter>0){
     getNewImg();

@@ -63,7 +63,7 @@ h4{
   margin-top: -10px;
   position: absolute;
   /*color: black;*/
-  font-size: 65px;
+  font-size: 70px;
   text-decoration: none;
 }
 .top-bar a:hover{
@@ -218,7 +218,7 @@ a.navs {
   height: 75px;
   /*margin-left:2vw;*/
   padding-left: 2vw;
-  font-size: 65px;
+  font-size: 55px;
 }
 
 a.navs:active {

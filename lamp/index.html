@@ -168,14 +168,13 @@ void main() {
   vec4 tex1 = texture2D(u_image2, v_texCoord);
   vec4 tex2 = texture2D(u_image3, v_texCoord);
 
-  // vec4 fc = (tex2 - tex1);
-  vec4 fc = (tex2 - tex1 + tex0);
-  //float avg = dot(tex2.rgb - tex1.rgb, vec3(1.0))/3.0;
+  vec4 fc = (tex2 - tex1);
+  float avg = dot(tex2.rgb - tex1.rgb, vec3(1.0))/3.0;
    // fc = avg <= 1.02  ? fc : 1.0-fc;
-  // vec4 add = (fc + tex0);
-   // gl_FragColor = vec4(fract(add));
-   gl_FragColor = vec4((fc));
+  vec4 add = (fc + tex0);
+   gl_FragColor = vec4(fract(add));
    // gl_FragColor = mod(add,tex2.r);
+  // gl_FragColor = add;
 }
 
 </script>
@@ -189,24 +188,40 @@ uniform float time;
 uniform vec2 amt;
 uniform sampler2D u_image;
 uniform sampler2D u_image2;
-uniform sampler2D u_image3;
 uniform float kernel[9];
 vec2 offset[9];
 uniform vec2 mouse;
 
 
 void main(){
-    //vertex coords
+    offset[0] = vec2(-step_w, -step_h);
+    offset[1] = vec2(0.0, -step_h);
+    offset[2] = vec2(step_w, -step_h);
+    offset[3] = vec2(-step_w, 0.0);
+    offset[4] = vec2(0.0, 0.0);
+    offset[5] = vec2(step_w, 0.0);
+    offset[6] = vec2(-step_w, step_h);
+    offset[7] = vec2(0.0, step_h);
+    offset[8] = vec2(step_w, step_h);
+    vec4 sum = texture2D(u_image, v_texCoord)*0.8;
+    
     vec2 tc = v_texCoord;
-    //sample texture
-    vec4 look = texture2D(u_image,tc);
-    //offset texture
+    vec4 look = texture2D(u_image2,tc);//sample repos texture
     vec2 offs = vec2(look.y-look.x,look.w-look.z)*0.009;
-    //relative coordinates
-    vec2 coord = offs+tc;  
-    //repositioned texture
+    vec2 coord = offs+tc;  //relative coordinates
+    
     vec4 repos = texture2D(u_image, coord);
-    //final color
+// float kernelWeight =0.0;
+    for(int i = 0; i <9; i++){
+      //IGNORE ALL THIS
+      // repos += texture2D(u_image, v_texCoord+offset[i]) * kernel[i];
+      // repos += look* kernel[i]*0.01;
+      
+      // sum += texture2D(u_image, v_texCoord + offset3[i]) * 0.5;
+      // kernelWeight += kernel[i];
+    // kernelWeight += 0.5;
+
+    }    
     gl_FragColor = repos;    
 } 
 
@@ -227,10 +242,10 @@ var mapMouseX2 = 0.11;
 var mapMouseY2 = 0.11;
 var interpMode = true;
 var video=document.createElement('video');
-// video.src = "lamp.mp4";
-// video.loop = true;
-// video.playbackRate = 0.25;
-// videoLoaded = true;
+video.src = "lamp.mp4";
+video.loop = true;
+video.playbackRate = 0.25;
+videoLoaded = true;
 canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -419,25 +434,25 @@ function OpenInNewTab(url) {
   win.focus();
 }
 
-  window.addEventListener('DOMContentLoaded', function(){
-        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
+  // window.addEventListener('DOMContentLoaded', function(){
+  //       navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia || navigator.oGetUserMedia;
  
-    if (navigator.getUserMedia) {       
-        navigator.getUserMedia({video: true, audio: false}, handleVideo, videoError);
-    }
+  //   if (navigator.getUserMedia) {       
+  //       navigator.getUserMedia({video: true, audio: false}, handleVideo, videoError);
+  //   }
  
-    function handleVideo(stream) {
-      var url = window.URL || window.webkitURL;
-       video.src = url ? url.createObjectURL(stream) : stream;
-        video.play();
-        //video.src = window.URL.createObjectURL(stream);
-        videoLoaded = true;
-    }
+  //   function handleVideo(stream) {
+  //     var url = window.URL || window.webkitURL;
+  //      video.src = url ? url.createObjectURL(stream) : stream;
+  //       video.play();
+  //       //video.src = window.URL.createObjectURL(stream);
+  //       videoLoaded = true;
+  //   }
  
-    function videoError(e) {
-      alert("There seems to be something wrong with your webcam :(");
-    }
-  });
+  //   function videoError(e) {
+  //     alert("There seems to be something wrong with your webcam :(");
+  //   }
+  // });
 
 </script>
 
